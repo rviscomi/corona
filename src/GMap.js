@@ -8,7 +8,8 @@ class GMap extends Component {
 
     this.state ={
       map: null,
-      layer: null
+      layer: null,
+      geocodes: []
     }
     window.initCorona = this.init.bind(this);
   }
@@ -32,14 +33,42 @@ class GMap extends Component {
       console.warn('No layer. Cant render heatmap data');
       return;
     }
-    const geocodes = nextProps.locations.map(location => {
-      return MapsAPI.getGeoCode(location);
-    });
 
-    Promise.all(geocodes).then(geocodes => {
-      geocodes = geocodes.filter(geocode => geocode);
-      this.state.layer.setData(geocodes);
+    if (nextProps.geocodes.length) {
+      this.setState({
+        ...this.state,
+        geocodes: nextProps.geocodes
+      });
+      return;
+    }
+
+    if (!nextProps.locations.length) {
+      return;
+    }
+
+    MapsAPI.enqueueLocations(nextProps.locations);
+    MapsAPI.startGeocoding(this,
+      this.addToHeatmap,
+      this.handleGeocodingComplete,
+      this.handleGeocodingError);
+  }
+
+  addToHeatmap(geocode) {
+    const geocodes = Array.from(this.state.geocodes);
+    geocodes.push(geocode);
+    this.setState({
+      ...this.state,
+      geocodes
     });
+    this.state.layer.setData(geocodes);
+  }
+
+  handleGeocodingComplete() {
+    this.props.handleGeocodingComplete(this.state.geocodes);
+  }
+
+  handleGeocodingError(e) {
+    console.warn(e);
   }
 
   render() {

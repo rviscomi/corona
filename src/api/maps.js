@@ -3,6 +3,10 @@ const MapsAPI = {};
 const MAPS_API_KEY = 'AIzaSyCTMqkw3mIZRplHeYQjWMHwLQtQyc-wbHA';
 const MAPS_URL = `https://maps.googleapis.com/maps/api/js?key=${MAPS_API_KEY}&libraries=visualization&callback=initCorona`;
 
+const QUEUE_DELAY_MS = 1500;
+let queueTimeout = null;
+let queue = [];
+
 MapsAPI.loadScript = () => {
   const script = document.createElement('script');
   script.src = MAPS_URL;
@@ -22,6 +26,11 @@ MapsAPI.init = (map) => {
   });
 };
 
+MapsAPI.inflateGeocodes = (geocodes) => {
+  const google = window.google;
+  return geocodes.map(({lat, lng}) => new google.maps.LatLng(lat, lng));
+}
+
 MapsAPI.getLayer = (map) => {
   const google = window.google;
   return new google.maps.visualization.HeatmapLayer({
@@ -30,18 +39,51 @@ MapsAPI.getLayer = (map) => {
   });
 };
 
-MapsAPI.getGeoCode = (location) => {
+MapsAPI.enqueueLocations = (locations) => {
+  queue = queue.concat(locations);
+};
+
+MapsAPI.startGeocoding = (context, onGeocoded, onComplete, onError) => {
+  if (queueTimeout) {
+    return;
+  }
+
+  queueTimeout = setInterval(() => {
+    MapsAPI.getGeocode(queue.shift()).then(geocode => {
+      onGeocoded.call(context, geocode);
+      return Promise.resolve();
+    }).catch(e => {
+      onError.call(context, e);
+      return Promise.resolve();
+    }).then(() => {
+      if (!queue.length) {
+        clearInterval(queueTimeout);
+        onComplete.call(context);
+      }
+    });
+  }, QUEUE_DELAY_MS);
+};
+
+MapsAPI.getGeocode = (location) => {
+  if (!location) {
+    return Promise.reject('No location to geocode.');
+  }
+
   const google = window.google;
   const geo = new google.maps.Geocoder();
   return new Promise((resolve, reject) => {
     geo.geocode({address: location}, (results, status) => {
-      if (status !== google.maps.GeocoderStatus.OK ||
+      if (status !== google.maps.GeocoderStatus.OK) {
+        reject(`Geocoding error. Location "${location}" resulted in the status "${status}".`);
+        return;
+      }
+      if (!results ||
           !results.length ||
           !results[0]) {
-        resolve(null);
+        reject('Geocoding error. Invalid results.');
+        return;
       }
 
-      console.log(results);
       resolve(results[0].geometry.location);
     });
   });

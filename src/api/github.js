@@ -2,7 +2,7 @@ const GitHubAPI = {};
 const STATUS_OK = '200 OK';
 const PRIVATE_AUTH_TOKEN  = '68a6814b713bdf46f7469d7f00b3f5712e309a46';
 
-GitHubAPI.getEverything = (user, repo) => {
+GitHubAPI.getEverything = (user, repo, cursor=null) => {
   const url = 'https://api.github.com/graphql';
   const method = 'POST';
   const headers = new Headers({
@@ -10,7 +10,7 @@ GitHubAPI.getEverything = (user, repo) => {
     'Content-Type': 'application/json'
   });
   const body = JSON.stringify({
-    query: `query getStargazers($user: String!, $repo: String!) {
+    query: `query getStargazers($user: String!, $repo: String!, $cursor: String) {
       repository(owner: $user, name: $repo) {
         owner {
           login
@@ -18,8 +18,10 @@ GitHubAPI.getEverything = (user, repo) => {
         }
         name
         description
-        stargazers(first: 100, orderBy: {field: STARRED_AT, direction: ASC}) {
+        stargazers(first: 100, after: $cursor, orderBy: {field: STARRED_AT, direction: ASC}) {
           edges {
+            cursor
+            starredAt
             node {
               login
               location
@@ -34,16 +36,39 @@ GitHubAPI.getEverything = (user, repo) => {
     }`,
     variables: {
       user,
-      repo
+      repo,
+      cursor
     },
     operationName: 'getStargazers'
   });
-  fetch(url, {
+  return fetch(url, {
     method,
     headers,
     body
-  }).then(r => r.json()).then(r => {
-    console.log(r);
+  }).then(r => {
+    if (r.status === 200) {
+      return r.json();
+    }
+
+    if (r.headers.get('X-RateLimit-Remaining') === '0') {
+      const rateLimitReset = new Date(1000 * r.headers.get('X-RateLimit-Reset'));
+      return Promise.reject(`Rate limit exceeded. Will be reset at ${rateLimitReset}.`);
+    }
+  }).then(r => {
+    if (!r.data) {
+      return Promise.reject(r.message);
+    }
+
+    const edges = r.data.repository.stargazers.edges;
+    const lastCursor = edges[edges.length - 1].cursor;
+    return Promise.resolve({
+      user: r.data.repository.owner.login,
+      repo: r.data.repository.name,
+      description: r.data.repository.description,
+      stars: r.data.repository.stargazers.totalCount,
+      locations: edges.map(edge => edge.node.location).filter(location => location),
+      lastCursor
+    });
   });
 }
 

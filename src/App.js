@@ -1,6 +1,8 @@
 import React, { Component } from 'react';
 import GMap from './GMap';
 import GitHubAPI from './api/github';
+import MapsAPI from './api/maps';
+import StorageAPI from './api/storage';
 import './App.css';
 
 class App extends Component {
@@ -8,41 +10,75 @@ class App extends Component {
     super();
     this.state = {
       user: 'rviscomi',
-      repo: 'red-dwarf',
+      repo: 'webpagetest',
       description: '',
       stars: 0,
-      users: [],
-      locations: []
+      locations: [],
+      geocodes: [],
+      lastCursor: null
     };
   }
 
-  componentDidMount() {
-    // Get summary information about the repository.
-    GitHubAPI.getRepo(this.state.user, this.state.repo).then(response => {
-      const stars = response.stargazers_count;
-      const description = response.description;
+  parseLocation(callback) {
+    const [_, user, repo] = location.pathname.split('/');
+    if (user && repo) {
       this.setState({
         ...this.state,
+        user,
+        repo
+      }, callback);
+    }
+  }
+
+  componentDidMount() {
+    StorageAPI.init();
+    this.parseLocation(this.getGeocodes);
+  }
+
+  getGeocodes() {
+    const cachedGeocodes = StorageAPI.get(this.state.user, this.state.repo);
+    if (cachedGeocodes) {
+      this.setState({
+        ...this.state,
+        geocodes: MapsAPI.inlateGeocodes(cachedGeocodes)
+      });
+    } else {
+      this.queryGitHub();
+    }
+  }
+
+  queryGitHub() {
+    GitHubAPI.getEverything(this.state.user, this.state.repo).then(({
+      user,
+      repo,
+      description,
+      stars,
+      locations,
+      lastCursor
+    }) => {
+      this.setState({
+        ...this.state,
+        user,
+        repo,
         description,
-        stars
+        stars,
+        locations,
+        lastCursor
       });
-      return Promise.resolve(stars);
-    }).then(stars => {
-      // Get all stargazers.
-      return GitHubAPI.getUsers(this.state.user, this.state.repo, this.state.stars).then((users) => {
-        this.setState({
-          ...this.state,
-          users
-        });
-        return Promise.resolve(users);
-      });
-    }).then(users => {
-      return GitHubAPI.getLocations(this.state.users).then(locations => {
-        this.setState({
-          ...this.state,
-          locations
-        });
-      });
+    }).catch(e => {
+      console.error(e);
+    });
+  }
+
+  handleGeocodingComplete(geocodes) {
+    const deflatedGeocodes = JSON.stringify(geocodes);
+    StorageAPI.set(this.state.user,
+        this.state.repo,
+        deflatedGeocodes,
+        this.state.lastCursor);
+    this.setState({
+      ...this.state,
+      geocodes
     });
   }
 
@@ -60,7 +96,10 @@ class App extends Component {
             </span>
           </span>
         </header>
-        <GMap locations={this.state.locations}></GMap>
+        <GMap geocodes={this.state.geocodes}
+              locations={this.state.locations}
+              handleGeocodingComplete={this.handleGeocodingComplete.bind(this)}>
+        </GMap>
       </div>
     );
   }
