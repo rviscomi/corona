@@ -1,0 +1,31 @@
+.App {
+  text-align: center;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #222;
+  color: #fff;
+  padding: 20px;
+}
+
+header .logo {
+  color: #222;
+  text-shadow: 0 0 10px yellow;
+  font: bold 30px sans-serif;
+  text-decoration: none;
+  transition: text-shadow 1s;
+}
+
+header .logo:hover {
+  text-shadow: 0 0 5px yellow;
+}
+
+header .about {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  width: 100%;
+}
