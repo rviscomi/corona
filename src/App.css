@@ -1,7 +1,3 @@
-.App {
-  text-align: center;
-}
-
 header {
   display: flex;
   justify-content: space-between;
@@ -13,14 +9,20 @@ header {
 
 header .logo {
   color: #222;
-  text-shadow: 0 0 10px yellow;
-  font: bold 30px sans-serif;
+  font: bold 50px 'Comfortaa', cursive;
   text-decoration: none;
+  text-transform: uppercase;
   transition: text-shadow 1s;
 }
-
-header .logo:hover {
+body:hover header .logo {
+  text-shadow: 0 0 10px yellow;
+}
+body:hover header .logo:hover,
+body:hover header:hover .logo:hover {
   text-shadow: 0 0 5px yellow;
+}
+body:hover header:hover .logo {
+  text-shadow: 0 0 15px yellow;
 }
 
 header .about {

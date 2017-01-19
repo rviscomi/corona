@@ -1,15 +1,65 @@
 const GitHubAPI = {};
-const STATUS_OK = '200 OK';
 const PRIVATE_AUTH_TOKEN  = '68a6814b713bdf46f7469d7f00b3f5712e309a46';
+const API_URL = 'https://api.github.com/graphql';
+const METHOD = 'POST';
+const HEADERS = new Headers({
+  'Authorization': `bearer ${PRIVATE_AUTH_TOKEN}`,
+  'Content-Type': 'application/json'
+});
 
 GitHubAPI.getEverything = (user, repo, cursor=null) => {
-  const url = 'https://api.github.com/graphql';
-  const method = 'POST';
-  const headers = new Headers({
-    'Authorization': `bearer ${PRIVATE_AUTH_TOKEN}`,
-    'Content-Type': 'application/json'
+  const body = GitHubAPI.getGraphQlBody(user, repo, cursor)
+  return new Promise((resolve, reject) => {
+    fetch(API_URL, {
+      method: METHOD,
+      headers: HEADERS,
+      body
+    }).then(response => {
+      if (response.status === 200) {
+        return response.json();
+      }
+
+      if (response.headers.get('X-RateLimit-Remaining') === '0') {
+        const rateLimitReset = new Date(1000 * response.headers.get('X-RateLimit-Reset'));
+        return reject(`Rate limit exceeded. Will be reset at ${rateLimitReset}.`);
+      }
+    }).then(response => {
+      if (!response.data) {
+        reject(response.message);
+        return;
+      }
+
+      const repository = response.data.repository;
+      const edges = repository.stargazers.edges;
+      const locations = edges.map(edge => edge.node.location).filter(location => location);
+      const lastCursor = edges.length ? edges[edges.length - 1].cursor : cursor;
+
+      if (repository.stargazers.pageInfo.hasNextPage) {
+        // Recursive promises whaaaaaat??
+        GitHubAPI.getEverything(user, repo, lastCursor).then(data => {
+          resolve({
+            ...data,
+            locations: locations.concat(data.locations)
+          });
+        });
+        return;
+      }
+
+      resolve({
+        user: repository.owner.login,
+        repo: repository.name,
+        description: repository.description,
+        isFork: repository.isFork,
+        stars: repository.stargazers.totalCount,
+        locations,
+        cursor: lastCursor
+      });
+    });
   });
-  const body = JSON.stringify({
+};
+
+GitHubAPI.getGraphQlBody = (user, repo, cursor) => {
+  return JSON.stringify({
     query: `query getStargazers($user: String!, $repo: String!, $cursor: String) {
       repository(owner: $user, name: $repo) {
         owner {
@@ -18,6 +68,7 @@ GitHubAPI.getEverything = (user, repo, cursor=null) => {
         }
         name
         description
+        isFork
         stargazers(first: 100, after: $cursor, orderBy: {field: STARRED_AT, direction: ASC}) {
           edges {
             cursor
@@ -41,88 +92,6 @@ GitHubAPI.getEverything = (user, repo, cursor=null) => {
     },
     operationName: 'getStargazers'
   });
-  return fetch(url, {
-    method,
-    headers,
-    body
-  }).then(r => {
-    if (r.status === 200) {
-      return r.json();
-    }
-
-    if (r.headers.get('X-RateLimit-Remaining') === '0') {
-      const rateLimitReset = new Date(1000 * r.headers.get('X-RateLimit-Reset'));
-      return Promise.reject(`Rate limit exceeded. Will be reset at ${rateLimitReset}.`);
-    }
-  }).then(r => {
-    if (!r.data) {
-      return Promise.reject(r.message);
-    }
-
-    const edges = r.data.repository.stargazers.edges;
-    const lastCursor = edges[edges.length - 1].cursor;
-    return Promise.resolve({
-      user: r.data.repository.owner.login,
-      repo: r.data.repository.name,
-      description: r.data.repository.description,
-      stars: r.data.repository.stargazers.totalCount,
-      locations: edges.map(edge => edge.node.location).filter(location => location),
-      lastCursor
-    });
-  });
-}
-
-GitHubAPI.getRepo = (user, repo) => {
-  const API_URL = `http://jrvis.com/red-dwarf/api/repos/${user}/${repo}`;
-  return fetch(API_URL).then(response => response.json()).then(response => {
-    if (!GitHubAPI.isOK(response)) {
-      return Promise.reject(response.status);
-    }
-
-    return Promise.resolve(response.data);
-  });
-};
-
-GitHubAPI.getUsers = (user, repo, stars) => {
-  const pages = Math.ceil(stars / 100);
-  const users = [];
-  for (let page = 1; page <= pages; page++) {
-    let API_URL = `http://jrvis.com/red-dwarf/api/users/${user}/${repo}?page=${page}&per_page=100`;
-    users.push(fetch(API_URL).then(response => response.json()).then(response => {
-      if (!GitHubAPI.isOK(response)) {
-        return Promise.resolve([]);
-      }
-
-      return Promise.resolve(response.data.map(user => user.login));
-    }));
-  }
-  return Promise.all(users).then(values => {
-    return Promise.resolve(values.reduce((all, value) => all.concat(value), []));
-  });
-};
-
-GitHubAPI.getLocations = (users) => {
-  const locations = [];
-  for (let user of users) {
-    let API_URL = `http://jrvis.com/red-dwarf/api/users/${user}`;
-    locations.push(fetch(API_URL).then(response => response.json()).then(response => {
-      if (!GitHubAPI.isOK(response)) {
-        return Promise.resolve(null);
-      }
-
-      return Promise.resolve(response.data.location);
-    }).catch(e => {
-      console.log(e);
-      return Promise.resolve(null);
-    }));
-  }
-  return Promise.all(locations).then(values => {
-    return Promise.resolve(values.filter(value => value));
-  });
-}
-
-GitHubAPI.isOK = (response) => {
-  return (response && response.status && response.status === STATUS_OK);
 };
 
 export default GitHubAPI;

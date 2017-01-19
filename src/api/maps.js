@@ -1,9 +1,9 @@
 const MapsAPI = {};
 
-const MAPS_API_KEY = 'AIzaSyCTMqkw3mIZRplHeYQjWMHwLQtQyc-wbHA';
+const MAPS_API_KEY = 'AIzaSyAgPO1oJp8iszGA5OSOpR8ZnbKK9EVEWxU';
 const MAPS_URL = `https://maps.googleapis.com/maps/api/js?key=${MAPS_API_KEY}&libraries=visualization&callback=initCorona`;
 
-const QUEUE_DELAY_MS = 1500;
+const QUEUE_DELAY_MS = 1750;
 let queueTimeout = null;
 let queue = [];
 
@@ -26,10 +26,11 @@ MapsAPI.init = (map) => {
   });
 };
 
+MapsAPI.deflateGeocodes = (geocodes) => JSON.stringify(geocodes);
 MapsAPI.inflateGeocodes = (geocodes) => {
   const google = window.google;
   return geocodes.map(({lat, lng}) => new google.maps.LatLng(lat, lng));
-}
+};
 
 MapsAPI.getLayer = (map) => {
   const google = window.google;
@@ -58,6 +59,7 @@ MapsAPI.startGeocoding = (context, onGeocoded, onComplete, onError) => {
     }).then(() => {
       if (!queue.length) {
         clearInterval(queueTimeout);
+        queueTimeout = null;
         onComplete.call(context);
       }
     });

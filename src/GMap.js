@@ -39,6 +39,7 @@ class GMap extends Component {
         ...this.state,
         geocodes: nextProps.geocodes
       });
+      this.state.layer.setData(nextProps.geocodes);
       return;
     }
 

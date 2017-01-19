@@ -12,58 +12,60 @@ class App extends Component {
       user: 'rviscomi',
       repo: 'webpagetest',
       description: '',
+      isFork: false,
       stars: 0,
       locations: [],
       geocodes: [],
-      lastCursor: null
+      cursor: null
     };
   }
 
   parseLocation(callback) {
     const [_, user, repo] = location.pathname.split('/');
     if (user && repo) {
-      this.setState({
-        ...this.state,
-        user,
-        repo
-      }, callback);
+      return new Promise((resolve, reject) => {
+        this.setState({
+          ...this.state,
+          user,
+          repo
+        }, resolve);
+      });
     }
+
+    return Promise.resolve();
   }
 
   componentDidMount() {
     StorageAPI.init();
-    this.parseLocation(this.getGeocodes);
+    this.parseLocation().then(this.getGeocodes.bind(this));
   }
 
   getGeocodes() {
-    const cachedGeocodes = StorageAPI.get(this.state.user, this.state.repo);
-    if (cachedGeocodes) {
+    StorageAPI.get(this.state.user, this.state.repo).then(this.onStorageUpdated.bind(this));
+  }
+
+  onStorageUpdated(data) {
+    const {geocodes, cursor, stars, isFork} = data;
+    if (geocodes && cursor) {
       this.setState({
         ...this.state,
-        geocodes: MapsAPI.inlateGeocodes(cachedGeocodes)
+        geocodes: MapsAPI.inflateGeocodes(geocodes),
+        cursor,
+        stars,
+        isFork
       });
-    } else {
-      this.queryGitHub();
     }
+
+    this.queryGitHub();
   }
 
   queryGitHub() {
-    GitHubAPI.getEverything(this.state.user, this.state.repo).then(({
-      user,
-      repo,
-      description,
-      stars,
-      locations,
-      lastCursor
-    }) => {
+    const {user, repo, cursor} = this.state;
+    GitHubAPI.getEverything(user, repo, cursor).then((data) => {
+      console.log(data)
       this.setState({
         ...this.state,
-        user,
-        repo,
-        description,
-        stars,
-        locations,
-        lastCursor
+        ...data
       });
     }).catch(e => {
       console.error(e);
@@ -71,11 +73,13 @@ class App extends Component {
   }
 
   handleGeocodingComplete(geocodes) {
-    const deflatedGeocodes = JSON.stringify(geocodes);
     StorageAPI.set(this.state.user,
         this.state.repo,
-        deflatedGeocodes,
-        this.state.lastCursor);
+        geocodes,
+        this.state.stars,
+        this.state.description,
+        this.state.isFork,
+        this.state.cursor);
     this.setState({
       ...this.state,
       geocodes
@@ -84,7 +88,7 @@ class App extends Component {
 
   render() {
     return (
-      <div className="App">
+      <div>
         <header>
           <a className="logo" href="/">Corona</a>
           <span className="about">

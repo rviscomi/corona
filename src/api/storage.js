@@ -13,7 +13,26 @@ StorageAPI.init = () => {
   firebase.initializeApp(CONFIG);
 };
 
-StorageAPI.get = (user, repo) => {};
-StorageAPI.set = (user, repo, data, cursor) => {};
+StorageAPI.get = (user, repo) => {
+  return new Promise((resolve, reject) => {
+    firebase.database().ref(`/geocodes/${user}/${repo}`).once('value', snapshot => {
+      resolve(snapshot.val() || {});
+    }, e => {
+      reject(e);
+    });
+  });
+};
+StorageAPI.set = (user, repo, geocodes, stars, description, isFork, cursor) => {
+  geocodes = StorageAPI.serializeGeocodes(geocodes);
+  firebase.database().ref(`/geocodes/${user}/${repo}`).set({
+    description,
+    stars,
+    isFork,
+    geocodes,
+    cursor
+  });
+};
+
+StorageAPI.serializeGeocodes = (geocodes) => JSON.parse(JSON.stringify(geocodes));
 
 export default StorageAPI;
