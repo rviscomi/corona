@@ -1,5 +1,5 @@
 const GitHubAPI = {};
-const PRIVATE_AUTH_TOKEN  = '68a6814b713bdf46f7469d7f00b3f5712e309a46';
+const PRIVATE_AUTH_TOKEN  = '68a6814b713bdf46f7469d7f00b3f5712e309a46'; // Just for demo purposes. This token is revoked.
 const API_URL = 'https://api.github.com/graphql';
 const METHOD = 'POST';
 const HEADERS = new Headers({
