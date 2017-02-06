@@ -1,14 +1,19 @@
-const GitHubAPI = {};
-const PRIVATE_AUTH_TOKEN  = '68a6814b713bdf46f7469d7f00b3f5712e309a46';
+const fetch = require('node-fetch');
+
+const AUTH_TOKEN = process.env.GITHUB_AUTH_TOKEN;
 const API_URL = 'https://api.github.com/graphql';
 const METHOD = 'POST';
-const HEADERS = new Headers({
-  'Authorization': `bearer ${PRIVATE_AUTH_TOKEN}`,
+const HEADERS = {
+  'Authorization': `bearer ${AUTH_TOKEN}`,
   'Content-Type': 'application/json'
-});
+};
 
-GitHubAPI.getEverything = (user, repo, cursor=null) => {
-  const body = GitHubAPI.getGraphQlBody(user, repo, cursor)
+exports.getEverything = getEverything = (user, repo, cursor=null) => {
+  if (!AUTH_TOKEN) {
+    return Promise.reject('Invalid authorization token.');
+  }
+
+  const body = getGraphQlBody(user, repo, cursor);
   return new Promise((resolve, reject) => {
     fetch(API_URL, {
       method: METHOD,
@@ -23,6 +28,8 @@ GitHubAPI.getEverything = (user, repo, cursor=null) => {
         const rateLimitReset = new Date(1000 * response.headers.get('X-RateLimit-Reset'));
         return reject(`Rate limit exceeded. Will be reset at ${rateLimitReset}.`);
       }
+
+      return reject(response.statusText);
     }).then(response => {
       if (!response.data) {
         reject(response.message);
@@ -30,17 +37,22 @@ GitHubAPI.getEverything = (user, repo, cursor=null) => {
       }
 
       const repository = response.data.repository;
+      if (!repository) {
+        console.log(response);
+        resolve({});
+        return;
+      }
+
       const edges = repository.stargazers.edges;
       const locations = edges.map(edge => edge.node.location).filter(location => location);
       const lastCursor = edges.length ? edges[edges.length - 1].cursor : cursor;
 
       if (repository.stargazers.pageInfo.hasNextPage) {
         // Recursive promises whaaaaaat??
-        GitHubAPI.getEverything(user, repo, lastCursor).then(data => {
-          resolve({
-            ...data,
+        getEverything(user, repo, lastCursor).then(data => {
+          resolve(Object.assign(data, {
             locations: locations.concat(data.locations)
-          });
+          }));
         });
         return;
       }
@@ -58,7 +70,7 @@ GitHubAPI.getEverything = (user, repo, cursor=null) => {
   });
 };
 
-GitHubAPI.getGraphQlBody = (user, repo, cursor) => {
+function getGraphQlBody(user, repo, cursor) {
   return JSON.stringify({
     query: `query getStargazers($user: String!, $repo: String!, $cursor: String) {
       repository(owner: $user, name: $repo) {
@@ -93,5 +105,3 @@ GitHubAPI.getGraphQlBody = (user, repo, cursor) => {
     operationName: 'getStargazers'
   });
 };
-
-export default GitHubAPI;

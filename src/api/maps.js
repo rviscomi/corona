@@ -1,6 +1,6 @@
 const MapsAPI = {};
 
-const MAPS_API_KEY = 'AIzaSyAgPO1oJp8iszGA5OSOpR8ZnbKK9EVEWxU';
+const MAPS_API_KEY = process.env.REACT_APP_MAPS_API_KEY;
 const MAPS_URL = `https://maps.googleapis.com/maps/api/js?key=${MAPS_API_KEY}&libraries=visualization&callback=initCorona`;
 
 const QUEUE_DELAY_MS = 1750;

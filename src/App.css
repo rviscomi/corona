@@ -31,3 +31,14 @@ header .about {
   align-items: center;
   width: 100%;
 }
+
+a {
+  text-decoration: none;
+  color: inherit;
+  transition: text-shadow 1s, letter-spacing ease-in-out 1s;
+}
+
+a:hover {
+  text-shadow: 0 0 1px yellow;
+  letter-spacing: 0.1px;
+}

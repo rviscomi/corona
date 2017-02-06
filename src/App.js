@@ -1,6 +1,5 @@
 import React, { Component } from 'react';
 import GMap from './GMap';
-import GitHubAPI from './api/github';
 import MapsAPI from './api/maps';
 import StorageAPI from './api/storage';
 import './App.css';
@@ -10,7 +9,7 @@ class App extends Component {
     super();
     this.state = {
       user: 'rviscomi',
-      repo: 'webpagetest',
+      repo: 'corona',
       description: '',
       isFork: false,
       stars: 0,
@@ -37,7 +36,10 @@ class App extends Component {
 
   componentDidMount() {
     StorageAPI.init();
-    this.parseLocation().then(this.getGeocodes.bind(this));
+    this.parseLocation().then(() => {
+      this.getGeocodes();
+      document.title = `Corona: ${this.state.user}/${this.state.repo}`;
+    });
   }
 
   getGeocodes() {
@@ -61,8 +63,12 @@ class App extends Component {
 
   queryGitHub() {
     const {user, repo, cursor} = this.state;
-    GitHubAPI.getEverything(user, repo, cursor).then((data) => {
-      console.log(data)
+    const apiHost = this.getApiHost();
+    fetch(`${apiHost}?user=${user}&repo=${repo}&cursor=${cursor || ''}`, {
+      'Accept': 'application/json'
+    }).then(response => {
+      return response.json();
+    }).then(data => {
       this.setState({
         ...this.state,
         ...data
@@ -70,6 +76,16 @@ class App extends Component {
     }).catch(e => {
       console.error(e);
     });
+  }
+
+  getApiHost() {
+    if (process.env.NODE_ENV === 'development') {
+      return 'http://localhost:3061/';
+    }
+
+    const url = new URL(location.origin);
+    url.port = 8080;
+    return url.href;
   }
 
   handleGeocodingComplete(geocodes) {
@@ -93,11 +109,11 @@ class App extends Component {
           <a className="logo" href="/">Corona</a>
           <span className="about">
             <span className="stars">{this.state.stars} {this.state.stars === 1 ? 'star' : 'stars'}</span>
-            <span title={this.state.description}>
+            <a href={`https://github.com/${this.state.user}/${this.state.repo}`} title={this.state.description}>
               <span className="user">{this.state.user}</span>
               /
               <span className="repo">{this.state.repo}</span>
-            </span>
+            </a>
           </span>
         </header>
         <GMap geocodes={this.state.geocodes}

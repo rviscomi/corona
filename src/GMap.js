@@ -30,7 +30,6 @@ class GMap extends Component {
 
   componentWillReceiveProps(nextProps) {
     if (!this.state.layer) {
-      console.warn('No layer. Cant render heatmap data');
       return;
     }
 
