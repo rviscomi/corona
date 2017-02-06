@@ -109,7 +109,7 @@ class App extends Component {
           <a className="logo" href="/">Corona</a>
           <span className="about">
             <span className="stars">{this.state.stars} {this.state.stars === 1 ? 'star' : 'stars'}</span>
-            <a href={`https://github.com/${this.state.user}/${this.state.repo}`} title={this.state.description}>
+            <a href={`https://github.com/${this.state.user}/${this.state.repo}`} target="_blank" title={this.state.description}>
               <span className="user">{this.state.user}</span>
               /
               <span className="repo">{this.state.repo}</span>
