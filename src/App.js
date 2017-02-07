@@ -92,9 +92,7 @@ class App extends Component {
       return 'http://localhost:3061/';
     }
 
-    const url = new URL(location.origin);
-    url.port = 8080;
-    return url.href;
+    return 'http://104.131.141.123:8080/';
   }
 
   handleGeocodingComplete(geocodes) {
