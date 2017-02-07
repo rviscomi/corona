@@ -8,7 +8,8 @@ const github = require('./github');
 
 const ORIGIN_WHITELIST = new Set([
   'http://localhost:3000',
-  'http://104.131.141.123'
+  'http://104.131.141.123',
+  'https://rviscomi.github.io'
 ]);
 const INPUT_PATTERN = /^([a-z0-9](-?[a-z0-9]){0,100})$/i;
 

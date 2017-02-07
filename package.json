@@ -1,6 +1,7 @@
 {
   "name": "corona",
   "version": "0.1.0",
+  "homepage": "https://rviscomi.github.io/corona",
   "private": true,
   "devDependencies": {
     "concurrently": "^3.1.0",
@@ -56,7 +57,8 @@
   },
   "scripts": {
     "start": "concurrently \"npm run server\" \"node scripts/start.js\"",
-    "build": "node scripts/build.js && cp -R build docs",
+    "build": "node scripts/build.js",
+    "docs": "npm run build && cp -R build/ docs/",
     "test": "node scripts/test.js --env=jsdom",
     "server": "node server/server.js",
     "deploy": "npm run build && ./deploy.sh"
