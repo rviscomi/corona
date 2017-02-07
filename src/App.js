@@ -4,6 +4,8 @@ import MapsAPI from './api/maps';
 import StorageAPI from './api/storage';
 import './App.css';
 
+const GITHUB_HOST = 'rviscomi.github.io';
+
 class App extends Component {
   constructor() {
     super();
@@ -20,7 +22,14 @@ class App extends Component {
   }
 
   parseLocation(callback) {
-    const [_, user, repo] = location.pathname.split('/');
+    let _, user, repo;
+    if (location.host === GITHUB_HOST) {
+      // URL is https://GITHUB_HOST/corona, so account for the leading /corona.
+      [_, _, user, repo] = location.pathname.split('/');
+    } else {
+      [_, user, repo] = location.pathname.split('/');
+    }
+
     if (user && repo) {
       return new Promise((resolve, reject) => {
         this.setState({
